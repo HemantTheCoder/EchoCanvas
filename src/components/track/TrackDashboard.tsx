@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import CanvasVisualizer from "@/components/visualizer/CanvasVisualizer";
 import TrackMetadataPanel from "./TrackMetadataPanel";
 import MusicDNAPanel from "./MusicDNAPanel";
@@ -19,6 +19,7 @@ export default function TrackDashboard({
 }) {
   const [theme, setTheme] = useState("neon");
   const [gameMode, setGameMode] = useState<GameMode>("catcher");
+  const [isArcadeMode, setIsArcadeMode] = useState(false);
   const { deviceId, playbackState, isActive } = useSpotifyPlayer();
   const { data: session } = useSession();
   
@@ -59,18 +60,51 @@ export default function TrackDashboard({
     }
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isArcadeMode) {
+        setIsArcadeMode(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isArcadeMode]);
+
   return (
     <div className="relative w-full flex-1 overflow-hidden">
-      {/* Background Visualizer */}
-      <div className="absolute inset-0 z-0">
+      {/* Background Visualizer (Always Zen) */}
+      <div className="absolute inset-0 z-0 opacity-50">
         <CanvasVisualizer 
           audioFeatures={audioFeatures} 
           theme={theme} 
           isPlaying={isActuallyPlaying} 
           trackId={track.id}
-          gameMode={gameMode}
+          gameMode="zen"
         />
       </div>
+
+      {/* Arcade Fullscreen Overlay */}
+      {isArcadeMode && (
+        <div className="fixed inset-0 z-50 bg-black flex flex-col">
+          <div className="absolute top-6 right-6 z-50">
+            <button 
+              onClick={() => setIsArcadeMode(false)}
+              className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full font-bold backdrop-blur-md transition-all"
+            >
+              Exit Arcade (ESC)
+            </button>
+          </div>
+          <div className="flex-1 w-full h-full relative">
+            <CanvasVisualizer 
+              audioFeatures={audioFeatures} 
+              theme={theme} 
+              isPlaying={isActuallyPlaying} 
+              trackId={track.id}
+              gameMode={gameMode}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Overlay UI */}
       <div className="relative z-10 w-full h-full p-6 flex flex-col md:flex-row gap-6 pb-32 overflow-y-auto">
@@ -105,10 +139,10 @@ export default function TrackDashboard({
             </div>
 
             <div className="flex flex-col gap-3">
-              <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Mini-Game Mode</h3>
-              <div className="flex flex-wrap gap-2">
+              <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Arcade Mode</h3>
+              <p className="text-xs text-gray-400">Jump into a fullscreen audio-reactive mini-game. Seeded directly by the current track!</p>
+              <div className="flex flex-wrap gap-2 mb-3">
                 {[
-                  { id: "zen", label: "Zen (No Game)" },
                   { id: "catcher", label: "Vibe Catcher" },
                   { id: "dodge", label: "Gravity Dodge" }
                 ].map((m) => (
@@ -125,6 +159,12 @@ export default function TrackDashboard({
                   </button>
                 ))}
               </div>
+              <button 
+                onClick={() => setIsArcadeMode(true)}
+                className="w-full bg-primary text-black font-bold py-3 rounded-lg hover:scale-[1.02] transition-transform glow-accent"
+              >
+                Enter Arcade
+              </button>
             </div>
           </div>
         </div>
