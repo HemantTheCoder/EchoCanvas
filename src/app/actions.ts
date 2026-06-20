@@ -8,7 +8,12 @@ import { authOptions } from "@/lib/auth";
 export async function fetchTrackDataAction(trackId: string) {
   try {
     const track = await getTrackDetails(trackId);
-    const audioFeatures = await getAudioFeatures(trackId);
+    let audioFeatures = null;
+    try {
+      audioFeatures = await getAudioFeatures(trackId);
+    } catch (e) {
+      console.warn("Audio features not available");
+    }
     return { track, audioFeatures };
   } catch (e) {
     console.error("fetchTrackDataAction error", e);

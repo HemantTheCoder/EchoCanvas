@@ -18,11 +18,21 @@ export default async function TrackPage({
 
   try {
     const track = await getTrackDetails(id);
-    const audioFeatures = await getAudioFeatures(id);
     
-    // We can also fetch similar tracks based on the track ID
-    const similarTracksRes = await getSimilarTracks([id]);
-    const similarTracks = similarTracksRes?.tracks || [];
+    let audioFeatures = null;
+    try {
+      audioFeatures = await getAudioFeatures(id);
+    } catch (e) {
+      console.warn("Audio features not available (Spotify API might have deprecated this for new apps)");
+    }
+    
+    let similarTracks = [];
+    try {
+      const similarTracksRes = await getSimilarTracks([id]);
+      similarTracks = similarTracksRes?.tracks || [];
+    } catch (e) {
+      console.warn("Similar tracks not available");
+    }
 
     return (
       <div className="flex-1 flex flex-col relative w-full h-full min-h-[800px]">
