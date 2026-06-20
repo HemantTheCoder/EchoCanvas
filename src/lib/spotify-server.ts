@@ -46,3 +46,15 @@ export async function getSimilarTracks(seedTrackId: string, artistName: string) 
     return { tracks: { items: [] } };
   }
 }
+
+export async function getUserPlaylists() {
+  const client = await getSpotifyClient();
+  const res = await client.getUserPlaylists({ limit: 50 });
+  return res.body;
+}
+
+export async function getPlaylistDetails(playlistId: string) {
+  const client = await getSpotifyClient();
+  const res = await client.getPlaylist(playlistId);
+  return res.body;
+}

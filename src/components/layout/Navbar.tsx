@@ -45,6 +45,9 @@ export default function Navbar() {
       <div className="flex items-center gap-4">
         {session ? (
           <>
+            <Link href="/library" className="text-sm text-gray-300 hover:text-white transition-colors hidden sm:block">
+              Library
+            </Link>
             <Link href="/vault" className="text-sm text-gray-300 hover:text-white transition-colors hidden sm:block">
               Memory Vault
             </Link>

@@ -50,6 +50,7 @@ export default function TrackDashboard({
           audioFeatures={audioFeatures} 
           theme={theme} 
           isPlaying={isActuallyPlaying} 
+          trackId={track.id}
         />
       </div>
 
