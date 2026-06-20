@@ -10,18 +10,16 @@ export async function getSpotifyClient() {
     clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
   });
 
-  // @ts-expect-error - Custom properties on session
   if (session?.user?.accessToken) {
-    // @ts-expect-error - Custom properties on session
     spotifyApi.setAccessToken(session.user.accessToken);
   }
 
   return spotifyApi;
 }
 
-export async function searchSpotify(query: string, types: ('album' | 'artist' | 'playlist' | 'track' | 'show' | 'episode' | 'audiobook')[] = ["track", "artist", "album"]) {
+export async function searchSpotify(query: string, types: ('album' | 'artist' | 'playlist' | 'track' | 'show' | 'episode')[] = ["track", "artist", "album"]) {
   const client = await getSpotifyClient();
-  const res = await client.search(query, types, { limit: 10 });
+  const res: any = await client.search(query, types as any, { limit: 10 });
   return res.body;
 }
 

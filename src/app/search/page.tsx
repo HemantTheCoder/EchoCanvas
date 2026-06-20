@@ -49,7 +49,7 @@ export default async function SearchPage({
 
       {tracks.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {tracks.map((track) => (
+          {tracks.map((track: any) => (
             <Link 
               key={track.id} 
               href={`/track/${track.id}`}
@@ -74,7 +74,7 @@ export default async function SearchPage({
                   {track.name}
                 </span>
                 <span className="text-sm text-gray-400 truncate">
-                  {track.artists.map(a => a.name).join(", ")}
+                  {track.artists.map((a: any) => a.name).join(", ")}
                 </span>
               </div>
             </Link>

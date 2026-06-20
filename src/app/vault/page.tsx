@@ -30,7 +30,7 @@ export default async function VaultPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {tracks.map((track) => (
+          {tracks.map((track: any) => (
             <Link 
               key={track.id} 
               href={`/track/${track.spotifyId}`}
@@ -56,7 +56,7 @@ export default async function VaultPage() {
               
               {track.tags && (
                 <div className="flex flex-wrap gap-2">
-                  {track.tags.split(",").map(t => t.trim()).filter(Boolean).map(t => (
+                  {track.tags.split(",").map((t: string) => t.trim()).filter(Boolean).map((t: string) => (
                     <span key={t} className="px-2 py-1 rounded bg-white/10 text-xs text-gray-300">#{t}</span>
                   ))}
                 </div>
