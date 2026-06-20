@@ -6,6 +6,7 @@ import TrackMetadataPanel from "./TrackMetadataPanel";
 import MusicDNAPanel from "./MusicDNAPanel";
 import { useSpotifyPlayer } from "../providers/SpotifyPlayerProvider";
 import { useSession } from "next-auth/react";
+import { GameMode } from "@/components/visualizer/CanvasVisualizer";
 
 export default function TrackDashboard({
   track,
@@ -17,6 +18,7 @@ export default function TrackDashboard({
   similarTracks: any[];
 }) {
   const [theme, setTheme] = useState("neon");
+  const [gameMode, setGameMode] = useState<GameMode>("catcher");
   const { deviceId, playbackState, isActive } = useSpotifyPlayer();
   const { data: session } = useSession();
   
@@ -29,6 +31,7 @@ export default function TrackDashboard({
     const token = (session.user as any).accessToken;
     
     try {
+      // 1. Play the main track
       await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
         method: "PUT",
         headers: {
@@ -37,8 +40,22 @@ export default function TrackDashboard({
         },
         body: JSON.stringify({ uris: [track.uri] }),
       });
+      
+      // 2. Queue up similar vibes so it autoplays!
+      if (similarTracks && similarTracks.length > 0) {
+        // Enqueue the top 5 similar tracks
+        for (const sim of similarTracks.slice(0, 5)) {
+          if (!sim.uri) continue;
+          await fetch(`https://api.spotify.com/v1/me/player/queue?uri=${encodeURIComponent(sim.uri)}&device_id=${deviceId}`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+        }
+      }
     } catch (e) {
-      console.error("Failed to play track", e);
+      console.error("Failed to play track or queue", e);
     }
   };
 
@@ -51,6 +68,7 @@ export default function TrackDashboard({
           theme={theme} 
           isPlaying={isActuallyPlaying} 
           trackId={track.id}
+          gameMode={gameMode}
         />
       </div>
 
@@ -65,23 +83,48 @@ export default function TrackDashboard({
             onPlayToggle={handlePlay} 
           />
           
-          {/* Theme Switcher Mini Panel */}
-          <div className="glass-panel p-4 flex flex-col gap-3">
-            <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Visual Theme</h3>
-            <div className="flex flex-wrap gap-2">
-              {["neon", "vaporwave", "cosmos", "ambient"].map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTheme(t)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-all ${
-                    theme === t 
-                      ? "bg-primary text-black glow-accent" 
-                      : "bg-white/10 text-white hover:bg-white/20"
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
+          {/* Theme & Game Switcher Mini Panel */}
+          <div className="glass-panel p-4 flex flex-col gap-6">
+            <div className="flex flex-col gap-3">
+              <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Visual Theme</h3>
+              <div className="flex flex-wrap gap-2">
+                {["neon", "vaporwave", "cosmos", "ambient"].map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setTheme(t)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-all ${
+                      theme === t 
+                        ? "bg-primary text-black glow-accent" 
+                        : "bg-white/10 text-white hover:bg-white/20"
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Mini-Game Mode</h3>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: "zen", label: "Zen (No Game)" },
+                  { id: "catcher", label: "Vibe Catcher" },
+                  { id: "dodge", label: "Gravity Dodge" }
+                ].map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => setGameMode(m.id as GameMode)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                      gameMode === m.id 
+                        ? "bg-white text-black glow-accent" 
+                        : "bg-white/10 text-white hover:bg-white/20"
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>

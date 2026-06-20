@@ -34,21 +34,30 @@ function cyrb128(str: string) {
   return [(h1^h2^h3^h4)>>>0, (h2^h1)>>>0, (h3^h1)>>>0, (h4^h1)>>>0];
 }
 
+export type GameMode = 'catcher' | 'dodge' | 'zen';
+
 export default function CanvasVisualizer({ 
   audioFeatures, 
   theme, 
   isPlaying,
   trackId = "default",
+  gameMode = "catcher"
 }: { 
   audioFeatures: any; 
   theme: string; 
   isPlaying: boolean; 
   trackId?: string;
+  gameMode?: GameMode;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [score, setScore] = useState(0);
   const [combo, setCombo] = useState(0);
-  const [gameActive, setGameActive] = useState(false);
+
+  useEffect(() => {
+    // Reset score when mode changes
+    setScore(0);
+    setCombo(0);
+  }, [gameMode, trackId]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -70,6 +79,9 @@ export default function CanvasVisualizer({
     const valence = audioFeatures?.valence || 0.5;
     
     const getColors = () => {
+      if (gameMode === 'dodge') {
+        return { bg: "#110000", p1: "#ff0000", p2: "#ff4400", orb: "#000" };
+      }
       switch (theme) {
         case "vaporwave":
           return { bg: "#1a0b2e", p1: "#ff00a0", p2: "#00d2ff", orb: "#fcd34d" };
@@ -118,19 +130,47 @@ export default function CanvasVisualizer({
       }
 
       update() {
-        // Mouse Repulsion
         const dx = mouse.x - this.x;
         const dy = mouse.y - this.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         
-        if (dist < 150) {
-          const force = (150 - dist) / 150;
-          this.speedX -= (dx / dist) * force * 2;
-          this.speedY -= (dy / dist) * force * 2;
+        if (gameMode === 'dodge' && isPlaying) {
+          // Attract slowly to mouse
+          if (dist < 300) {
+            const force = (300 - dist) / 300;
+            this.speedX += (dx / dist) * force * 0.2;
+            this.speedY += (dy / dist) * force * 0.2;
+          }
+          
+          // Collision check!
+          if (dist < this.size + 15 && mouse.x > 0) {
+            setScore(0);
+            setCombo(0);
+            // Explosion pushback
+            this.speedX = -(dx / dist) * 10;
+            this.speedY = -(dy / dist) * 10;
+          }
         } else {
-          // Return to base speed
-          this.speedX += (this.baseSpeedX - this.speedX) * 0.05;
-          this.speedY += (this.baseSpeedY - this.speedY) * 0.05;
+          // Repel from mouse
+          if (dist < 150) {
+            const force = (150 - dist) / 150;
+            this.speedX -= (dx / dist) * force * 2;
+            this.speedY -= (dy / dist) * force * 2;
+          } else {
+            // Return to base speed
+            this.speedX += (this.baseSpeedX - this.speedX) * 0.05;
+            this.speedY += (this.baseSpeedY - this.speedY) * 0.05;
+          }
+        }
+
+        // Limit max speed in dodge mode
+        if (gameMode === 'dodge') {
+          const maxSpeed = 5;
+          const currentSpeed = Math.sqrt(this.speedX**2 + this.speedY**2);
+          if (currentSpeed > maxSpeed) {
+            this.speedX = (this.speedX / currentSpeed) * maxSpeed;
+            this.speedY = (this.speedY / currentSpeed) * maxSpeed;
+          }
         }
 
         this.x += this.speedX;
@@ -162,10 +202,10 @@ export default function CanvasVisualizer({
 
       constructor() {
         this.x = rand() * (canvas!.width - 100) + 50;
-        this.y = rand() * (canvas!.height - 200) + 50; // Keep away from bottom player
-        this.maxRadius = rand() * 20 + 30; // 30-50px
+        this.y = rand() * (canvas!.height - 200) + 50; 
+        this.maxRadius = rand() * 20 + 30; 
         this.radius = 0;
-        this.maxLife = 100; // frames
+        this.maxLife = 100;
         this.life = this.maxLife;
         this.active = true;
       }
@@ -174,7 +214,6 @@ export default function CanvasVisualizer({
         if (!this.active) return;
         this.life--;
         
-        // Appear and shrink
         if (this.life > this.maxLife - 20) {
           this.radius += (this.maxRadius - this.radius) * 0.2;
         } else if (this.life < 20) {
@@ -183,7 +222,6 @@ export default function CanvasVisualizer({
 
         if (this.life <= 0) {
           this.active = false;
-          // Reset combo if missed
           setCombo(0);
         }
       }
@@ -200,7 +238,6 @@ export default function CanvasVisualizer({
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.fill();
         
-        // Draw expanding ring
         ctx.strokeStyle = colors.orb;
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -226,7 +263,10 @@ export default function CanvasVisualizer({
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
       
-      const particleCount = Math.floor(energy * 200) + 50;
+      // Dodge mode has fewer particles so it's fair
+      const countMult = gameMode === 'dodge' ? 0.5 : 1;
+      const particleCount = Math.floor((energy * 200) + 50) * countMult;
+      
       particles = [];
       for (let i = 0; i < particleCount; i++) {
         particles.push(new Particle());
@@ -245,19 +285,19 @@ export default function CanvasVisualizer({
     };
 
     const handleMouseClick = (e: MouseEvent) => {
+      if (gameMode !== 'catcher') return;
+
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
       
-      // Explosion effect
       for (let i = 0; i < 20; i++) {
         particles.push(new Particle(mx, my, true));
       }
       if (particles.length > 400) {
-        particles.splice(0, 20); // Keep count manageable
+        particles.splice(0, 20); 
       }
       
-      // Check orb click
       let hit = false;
       orbs.forEach(orb => {
         if (orb.checkClick(mx, my)) {
@@ -275,9 +315,10 @@ export default function CanvasVisualizer({
     canvas.addEventListener("mouseout", handleMouseOut);
     canvas.addEventListener("mousedown", handleMouseClick);
 
-    // Orb spawner logic
     let lastSpawn = 0;
-    const spawnInterval = 1500 - (energy * 1000); // Faster for high energy
+    const spawnInterval = 1500 - (energy * 1000); 
+    
+    let lastDodgeTick = 0;
 
     const animate = (timestamp: number) => {
       if (!ctx || !canvas) return;
@@ -293,27 +334,31 @@ export default function CanvasVisualizer({
       });
       
       if (isPlaying) {
-        setGameActive(true);
-        // Spawn Orbs
-        if (timestamp - lastSpawn > spawnInterval) {
-          lastSpawn = timestamp;
-          // Deterministic chance to spawn based on track seed
-          if (rand() > 0.3) {
-            orbs.push(new VibeOrb());
+        if (gameMode === 'catcher') {
+          if (timestamp - lastSpawn > spawnInterval) {
+            lastSpawn = timestamp;
+            if (rand() > 0.3) {
+              orbs.push(new VibeOrb());
+            }
+          }
+        } else if (gameMode === 'dodge') {
+          if (timestamp - lastDodgeTick > 100) {
+            lastDodgeTick = timestamp;
+            if (mouse.x > 0) { // If mouse is on screen
+              setScore(s => s + 1);
+            }
           }
         }
-      } else {
-        setGameActive(false);
       }
 
-      // Update Orbs
-      orbs = orbs.filter(orb => orb.active || orb.life > 0);
-      orbs.forEach(orb => {
-        orb.update();
-        orb.draw();
-      });
+      if (gameMode === 'catcher') {
+        orbs = orbs.filter(orb => orb.active || orb.life > 0);
+        orbs.forEach(orb => {
+          orb.update();
+          orb.draw();
+        });
+      }
 
-      // Simulated Waveform if playing
       if (isPlaying) {
         ctx.beginPath();
         const centerY = canvas.height / 2;
@@ -326,7 +371,7 @@ export default function CanvasVisualizer({
           ctx.lineTo(i, centerY + Math.sin(i * 0.05 * frequency + time * 5) * amplitude);
         }
         
-        ctx.strokeStyle = getColors().p1;
+        ctx.strokeStyle = colors.p1;
         ctx.lineWidth = 3;
         ctx.stroke();
       }
@@ -349,23 +394,24 @@ export default function CanvasVisualizer({
       canvas.removeEventListener("mouseout", handleMouseOut);
       canvas.removeEventListener("mousedown", handleMouseClick);
     };
-  }, [audioFeatures, theme, isPlaying, trackId, combo]);
+  }, [audioFeatures, theme, isPlaying, trackId, gameMode, combo]);
 
   return (
     <>
       <canvas 
         ref={canvasRef} 
-        className="w-full h-full object-cover transition-colors duration-1000 cursor-crosshair"
+        className={`w-full h-full object-cover transition-colors duration-1000 ${gameMode === 'dodge' ? 'cursor-none' : 'cursor-crosshair'}`}
       />
-      {/* Vibe Catcher HUD */}
-      <div className={`absolute top-8 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none transition-opacity duration-500 ${gameActive ? 'opacity-100' : 'opacity-0'}`}>
-        <span className="text-white text-5xl font-black drop-shadow-[0_0_15px_rgba(255,255,255,0.5)] tracking-widest uppercase">
-          {score}
-        </span>
-        <span className={`text-xl font-bold transition-transform duration-200 ${combo > 2 ? 'text-primary scale-110' : 'text-gray-400'}`}>
-          {combo > 0 ? `${combo}x Combo` : 'Catch the Vibes!'}
-        </span>
-      </div>
+      {gameMode !== 'zen' && (
+        <div className={`absolute top-8 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none transition-opacity duration-500 ${isPlaying ? 'opacity-100' : 'opacity-0'}`}>
+          <span className={`text-5xl font-black drop-shadow-[0_0_15px_rgba(255,255,255,0.5)] tracking-widest uppercase ${gameMode === 'dodge' ? 'text-red-500' : 'text-white'}`}>
+            {score}
+          </span>
+          <span className={`text-xl font-bold transition-transform duration-200 ${combo > 2 ? 'text-primary scale-110' : 'text-gray-400'}`}>
+            {gameMode === 'dodge' ? 'Survive!' : (combo > 0 ? `${combo}x Combo` : 'Catch the Vibes!')}
+          </span>
+        </div>
+      )}
     </>
   );
 }
