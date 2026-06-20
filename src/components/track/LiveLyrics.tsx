@@ -61,9 +61,16 @@ export default function LiveLyrics({ lyricsData }: { lyricsData: any }) {
   
   useEffect(() => {
     if (lyricsScrollRef.current && activeLyricIndex !== -1) {
-      const activeEl = lyricsScrollRef.current.children[activeLyricIndex] as HTMLElement;
+      const container = lyricsScrollRef.current;
+      const activeEl = container.children[activeLyricIndex] as HTMLElement;
       if (activeEl) {
-        activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Calculate the target scroll position to center the active lyric inside the panel
+        // This prevents the entire page from being forced to scroll.
+        const targetScroll = activeEl.offsetTop - (container.clientHeight / 2) + (activeEl.clientHeight / 2);
+        container.scrollTo({
+          top: targetScroll,
+          behavior: 'smooth'
+        });
       }
     }
   }, [activeLyricIndex]);
@@ -78,7 +85,7 @@ export default function LiveLyrics({ lyricsData }: { lyricsData: any }) {
       <div className="absolute top-10 inset-x-0 h-16 bg-gradient-to-b from-[#111111] to-transparent z-10 pointer-events-none"></div>
       <div className="absolute bottom-0 inset-x-0 h-24 bg-gradient-to-t from-[#111111] to-transparent z-10 pointer-events-none"></div>
 
-      <div ref={lyricsScrollRef} className="flex flex-col gap-6 overflow-y-auto custom-scrollbar pb-32 pt-16 scroll-smooth h-full">
+      <div ref={lyricsScrollRef} className="relative flex flex-col gap-6 overflow-y-auto custom-scrollbar pb-32 pt-16 scroll-smooth h-full">
         {parsedLyrics.map((lyric, idx) => {
           const isActive = idx === activeLyricIndex;
           const isPassed = idx < activeLyricIndex;
