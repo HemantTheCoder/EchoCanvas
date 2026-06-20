@@ -4,6 +4,8 @@ import { useState } from "react";
 import CanvasVisualizer from "@/components/visualizer/CanvasVisualizer";
 import TrackMetadataPanel from "./TrackMetadataPanel";
 import MusicDNAPanel from "./MusicDNAPanel";
+import { useSpotifyPlayer } from "../providers/SpotifyPlayerProvider";
+import { useSession } from "next-auth/react";
 
 export default function TrackDashboard({
   track,
@@ -16,6 +18,29 @@ export default function TrackDashboard({
 }) {
   const [theme, setTheme] = useState("neon");
   const [isPlaying, setIsPlaying] = useState(false);
+  const { deviceId } = useSpotifyPlayer();
+  const { data: session } = useSession();
+
+  const handlePlay = async () => {
+    if (!deviceId || !session) return;
+    
+    setIsPlaying(!isPlaying);
+    
+    const token = (session.user as any).accessToken;
+    
+    try {
+      await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ uris: [track.uri] }),
+      });
+    } catch (e) {
+      console.error("Failed to play track", e);
+    }
+  };
 
   return (
     <div className="relative w-full flex-1 overflow-hidden">
@@ -36,7 +61,7 @@ export default function TrackDashboard({
           <TrackMetadataPanel 
             track={track} 
             isPlaying={isPlaying} 
-            onPlayToggle={() => setIsPlaying(!isPlaying)} 
+            onPlayToggle={handlePlay} 
           />
           
           {/* Theme Switcher Mini Panel */}

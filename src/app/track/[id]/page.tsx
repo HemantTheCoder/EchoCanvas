@@ -26,7 +26,7 @@ export default async function TrackPage({
       console.warn("Audio features not available (Spotify API might have deprecated this for new apps)");
     }
     
-    let similarTracks = [];
+    let similarTracks: any[] = [];
     try {
       const similarTracksRes = await getSimilarTracks([id]);
       similarTracks = similarTracksRes?.tracks || [];
