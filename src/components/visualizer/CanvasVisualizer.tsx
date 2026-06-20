@@ -57,6 +57,12 @@ export default function CanvasVisualizer({
   const [combo, setCombo] = useState(0);
   const { playbackState } = useSpotifyPlayer();
 
+  const comboRef = useRef(combo);
+  useEffect(() => { comboRef.current = combo; }, [combo]);
+
+  const playbackStateRef = useRef(playbackState);
+  useEffect(() => { playbackStateRef.current = playbackState; }, [playbackState]);
+
   const parsedLyrics = useMemo(() => {
     if (!lyricsData?.syncedLyrics) return [];
     const lines = lyricsData.syncedLyrics.split("\n");
@@ -72,6 +78,9 @@ export default function CanvasVisualizer({
     }
     return parsed;
   }, [lyricsData]);
+
+  const parsedLyricsRef = useRef(parsedLyrics);
+  useEffect(() => { parsedLyricsRef.current = parsedLyrics; }, [parsedLyrics]);
 
   useEffect(() => {
     // Reset score when mode changes
@@ -97,6 +106,8 @@ export default function CanvasVisualizer({
 
     const energy = audioFeatures?.energy || 0.6;
     const valence = audioFeatures?.valence || 0.5;
+    const tempo = audioFeatures?.tempo || 120;
+    const beatDurationMs = (60 / tempo) * 1000;
     
     const getColors = () => {
       if (gameMode === 'dodge') {
@@ -202,11 +213,13 @@ export default function CanvasVisualizer({
         if (this.y < 0) this.y = canvas!.height;
       }
 
-      draw() {
+      draw(pulse: number) {
         if (!ctx) return;
         ctx.fillStyle = this.color;
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        // Pulse affects the size of particles
+        const currentSize = this.size + (pulse * this.size * 1.5 * energy);
+        ctx.arc(this.x, this.y, currentSize, 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -326,7 +339,7 @@ export default function CanvasVisualizer({
       });
       
       if (hit) {
-        setScore(s => s + 100 + (combo * 10));
+        setScore(s => s + 100 + (comboRef.current * 10));
         setCombo(c => c + 1);
       }
     };
@@ -351,15 +364,24 @@ export default function CanvasVisualizer({
 
       // Logic to track exact playback position natively in the loop
       let currentPos = 0;
-      if (isPlaying && playbackState) {
-        currentPos = playbackState.position + (performance.now() - playbackState.timestamp);
+      let beatPhase = 0;
+      let pulse = 0;
+      
+      const currentState = playbackStateRef.current;
+      if (isPlaying && currentState) {
+        currentPos = currentState.position + (performance.now() - currentState.timestamp);
+        // Calculate BPM heartbeat
+        beatPhase = (currentPos % beatDurationMs) / beatDurationMs;
+        // Create a sharp decay pulse (1.0 exactly on the beat, decaying to 0)
+        pulse = Math.pow(1 - beatPhase, 4);
       }
 
       // Check lyrics for explosions!
-      if (isPlaying && parsedLyrics.length > 0) {
+      const currentLyrics = parsedLyricsRef.current;
+      if (isPlaying && currentLyrics.length > 0) {
         let newIdx = -1;
-        for (let i = 0; i < parsedLyrics.length; i++) {
-          if (parsedLyrics[i].timeMs <= currentPos) {
+        for (let i = 0; i < currentLyrics.length; i++) {
+          if (currentLyrics[i].timeMs <= currentPos) {
             newIdx = i;
           } else {
             break;
@@ -378,12 +400,14 @@ export default function CanvasVisualizer({
       
       const colors = getColors();
       
-      ctx.fillStyle = colors.bg + (isPlaying ? "40" : "80"); 
+      // The background slightly throbs to the beat
+      const bgOpacity = isPlaying ? Math.floor(40 + (pulse * 20)).toString(16).padStart(2, '0') : "80";
+      ctx.fillStyle = colors.bg + bgOpacity; 
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       particles.forEach((p) => {
         p.update();
-        p.draw();
+        p.draw(pulse);
       });
       
       if (isPlaying) {
@@ -417,15 +441,19 @@ export default function CanvasVisualizer({
         const centerY = canvas.height / 2;
         ctx.moveTo(0, centerY);
         
+        // Waveform also pulses to the beat
+        const beatAmplitude = 1 + (pulse * 2 * energy);
+        
         for (let i = 0; i < canvas.width; i += 10) {
           const time = timestamp / 1000;
           const frequency = energy * 5;
-          const amplitude = energy * 100 * Math.sin(time * 2 + i * 0.01);
+          const amplitude = energy * 100 * Math.sin(time * 2 + i * 0.01) * beatAmplitude;
           ctx.lineTo(i, centerY + Math.sin(i * 0.05 * frequency + time * 5) * amplitude);
         }
         
         ctx.strokeStyle = colors.p1;
-        ctx.lineWidth = 3;
+        // Make the line thicker on the beat
+        ctx.lineWidth = 3 + (pulse * 4);
         ctx.stroke();
       }
 
@@ -447,7 +475,7 @@ export default function CanvasVisualizer({
       canvas.removeEventListener("mouseout", handleMouseOut);
       canvas.removeEventListener("mousedown", handleMouseClick);
     };
-  }, [audioFeatures, theme, isPlaying, trackId, gameMode, combo, parsedLyrics, playbackState]);
+  }, [audioFeatures, theme, isPlaying, trackId, gameMode]); // REMOVED combo, parsedLyrics, playbackState from deps!
 
   return (
     <>
