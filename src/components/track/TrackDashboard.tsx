@@ -8,6 +8,7 @@ import LiveLyrics from "./LiveLyrics";
 import { useSpotifyPlayer } from "../providers/SpotifyPlayerProvider";
 import { useSession } from "next-auth/react";
 import { GameMode } from "@/components/visualizer/CanvasVisualizer";
+import { useRouter } from "next/navigation";
 
 export default function TrackDashboard({
   track,
@@ -25,9 +26,21 @@ export default function TrackDashboard({
   const [isArcadeMode, setIsArcadeMode] = useState(false);
   const { deviceId, playbackState, isActive } = useSpotifyPlayer();
   const { data: session } = useSession();
+  const router = useRouter();
   
   // The true playing state from the SDK
   const isActuallyPlaying = isActive && playbackState && !playbackState.paused;
+
+  // Auto-navigate to the next song if autoplay kicks in
+  useEffect(() => {
+    if (!playbackState || !isActive) return;
+    
+    const currentPlayingId = playbackState.track_window?.current_track?.id;
+    // If the player moved onto a new track, follow it!
+    if (currentPlayingId && currentPlayingId !== track.id && isActuallyPlaying) {
+      router.push(`/track/${currentPlayingId}`);
+    }
+  }, [playbackState, isActive, track.id, router, isActuallyPlaying]);
 
   const handlePlay = async () => {
     if (!deviceId || !session) return;
