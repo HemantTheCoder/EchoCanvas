@@ -35,11 +35,14 @@ export async function getAudioFeatures(trackId: string) {
   return res.body;
 }
 
-export async function getSimilarTracks(seedTracks: string[]) {
+export async function getSimilarTracks(seedTrackId: string, artistName: string) {
   const client = await getSpotifyClient();
-  const res = await client.getRecommendations({
-    seed_tracks: seedTracks,
-    limit: 10,
-  });
-  return res.body;
+  try {
+    // Fallback: Since getRecommendations is deprecated, we search for more tracks by this artist
+    const res: any = await client.searchTracks(`artist:${artistName}`, { limit: 10 });
+    return res.body;
+  } catch (e) {
+    console.error("Fallback search failed", e);
+    return { tracks: { items: [] } };
+  }
 }

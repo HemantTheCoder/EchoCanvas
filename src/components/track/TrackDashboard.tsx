@@ -17,14 +17,14 @@ export default function TrackDashboard({
   similarTracks: any[];
 }) {
   const [theme, setTheme] = useState("neon");
-  const [isPlaying, setIsPlaying] = useState(false);
-  const { deviceId } = useSpotifyPlayer();
+  const { deviceId, playbackState, isActive } = useSpotifyPlayer();
   const { data: session } = useSession();
+  
+  // The true playing state from the SDK
+  const isActuallyPlaying = isActive && playbackState && !playbackState.paused;
 
   const handlePlay = async () => {
     if (!deviceId || !session) return;
-    
-    setIsPlaying(!isPlaying);
     
     const token = (session.user as any).accessToken;
     
@@ -49,7 +49,7 @@ export default function TrackDashboard({
         <CanvasVisualizer 
           audioFeatures={audioFeatures} 
           theme={theme} 
-          isPlaying={isPlaying} 
+          isPlaying={isActuallyPlaying} 
         />
       </div>
 
@@ -60,7 +60,7 @@ export default function TrackDashboard({
         <div className="w-full md:w-1/3 flex flex-col gap-6">
           <TrackMetadataPanel 
             track={track} 
-            isPlaying={isPlaying} 
+            isPlaying={isActuallyPlaying} 
             onPlayToggle={handlePlay} 
           />
           

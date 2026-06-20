@@ -28,8 +28,9 @@ export default async function TrackPage({
     
     let similarTracks: any[] = [];
     try {
-      const similarTracksRes = await getSimilarTracks([id]);
-      similarTracks = similarTracksRes?.tracks || [];
+      const artistName = track.artists[0]?.name || "";
+      const similarTracksRes = await getSimilarTracks(id, artistName);
+      similarTracks = similarTracksRes?.tracks?.items || [];
     } catch (e) {
       console.warn("Similar tracks not available");
     }
