@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import CanvasVisualizer from "@/components/visualizer/CanvasVisualizer";
 import TrackMetadataPanel from "./TrackMetadataPanel";
 import MusicDNAPanel from "./MusicDNAPanel";
+import LiveLyrics from "./LiveLyrics";
 import { useSpotifyPlayer } from "../providers/SpotifyPlayerProvider";
 import { useSession } from "next-auth/react";
 import { GameMode } from "@/components/visualizer/CanvasVisualizer";
@@ -12,10 +13,12 @@ export default function TrackDashboard({
   track,
   audioFeatures,
   similarTracks,
+  lyricsData,
 }: {
   track: any;
   audioFeatures: any;
   similarTracks: any[];
+  lyricsData: any;
 }) {
   const [theme, setTheme] = useState("neon");
   const [gameMode, setGameMode] = useState<GameMode>("catcher");
@@ -80,6 +83,7 @@ export default function TrackDashboard({
           isPlaying={isActuallyPlaying} 
           trackId={track.id}
           gameMode="zen"
+          lyricsData={lyricsData}
         />
       </div>
 
@@ -101,6 +105,7 @@ export default function TrackDashboard({
               isPlaying={isActuallyPlaying} 
               trackId={track.id}
               gameMode={gameMode}
+              lyricsData={lyricsData}
             />
           </div>
         </div>
@@ -173,6 +178,11 @@ export default function TrackDashboard({
         <div className="w-full md:w-2/3 flex flex-col gap-6">
           <MusicDNAPanel audioFeatures={audioFeatures} />
           
+          {/* Live Lyrics Panel */}
+          {lyricsData?.syncedLyrics && (
+            <LiveLyrics lyricsData={lyricsData} />
+          )}
+
           {/* Similar Tracks Mini Panel */}
           <div className="glass-panel p-6 flex flex-col gap-4">
             <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Similar Vibes</h3>

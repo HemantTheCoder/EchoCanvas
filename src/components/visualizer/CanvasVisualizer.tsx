@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
+import { useSpotifyPlayer } from "../providers/SpotifyPlayerProvider";
 
 // Simple deterministic RNG based on string seed
 function sfc32(a: number, b: number, c: number, d: number) {
@@ -41,17 +42,36 @@ export default function CanvasVisualizer({
   theme, 
   isPlaying,
   trackId = "default",
-  gameMode = "catcher"
+  gameMode = "catcher",
+  lyricsData
 }: { 
   audioFeatures: any; 
   theme: string; 
   isPlaying: boolean; 
   trackId?: string;
   gameMode?: GameMode;
+  lyricsData?: any;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [score, setScore] = useState(0);
   const [combo, setCombo] = useState(0);
+  const { playbackState } = useSpotifyPlayer();
+
+  const parsedLyrics = useMemo(() => {
+    if (!lyricsData?.syncedLyrics) return [];
+    const lines = lyricsData.syncedLyrics.split("\n");
+    const parsed = [];
+    for (const line of lines) {
+      const match = line.match(/\[(\d{2}):(\d{2}\.\d{2})\](.*)/);
+      if (match && match[3].trim()) {
+        const mins = parseInt(match[1]);
+        const secs = parseFloat(match[2]);
+        const timeMs = (mins * 60 + secs) * 1000;
+        parsed.push({ timeMs, text: match[3].trim() });
+      }
+    }
+    return parsed;
+  }, [lyricsData]);
 
   useEffect(() => {
     // Reset score when mode changes
@@ -319,9 +339,42 @@ export default function CanvasVisualizer({
     const spawnInterval = 1500 - (energy * 1000); 
     
     let lastDodgeTick = 0;
+    
+    let activeLyricIndex = -1;
+    let lastTimestamp = 0;
 
     const animate = (timestamp: number) => {
       if (!ctx || !canvas) return;
+      
+      const delta = timestamp - lastTimestamp;
+      lastTimestamp = timestamp;
+
+      // Logic to track exact playback position natively in the loop
+      let currentPos = 0;
+      if (isPlaying && playbackState) {
+        currentPos = playbackState.position + (performance.now() - playbackState.timestamp);
+      }
+
+      // Check lyrics for explosions!
+      if (isPlaying && parsedLyrics.length > 0) {
+        let newIdx = -1;
+        for (let i = 0; i < parsedLyrics.length; i++) {
+          if (parsedLyrics[i].timeMs <= currentPos) {
+            newIdx = i;
+          } else {
+            break;
+          }
+        }
+        if (newIdx !== activeLyricIndex && newIdx !== -1) {
+          activeLyricIndex = newIdx;
+          // Spawn a massive central explosion synced to the new vocal line!
+          const cx = canvas.width / 2;
+          const cy = canvas.height / 2;
+          for (let i = 0; i < 40; i++) {
+            particles.push(new Particle(cx, cy, true));
+          }
+        }
+      }
       
       const colors = getColors();
       
@@ -394,7 +447,7 @@ export default function CanvasVisualizer({
       canvas.removeEventListener("mouseout", handleMouseOut);
       canvas.removeEventListener("mousedown", handleMouseClick);
     };
-  }, [audioFeatures, theme, isPlaying, trackId, gameMode, combo]);
+  }, [audioFeatures, theme, isPlaying, trackId, gameMode, combo, parsedLyrics, playbackState]);
 
   return (
     <>

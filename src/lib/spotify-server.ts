@@ -58,3 +58,20 @@ export async function getPlaylistDetails(playlistId: string) {
   const res = await client.getPlaylist(playlistId);
   return res.body;
 }
+
+export async function getLyrics(artistName: string, trackName: string) {
+  try {
+    const res = await fetch(`https://lrclib.net/api/get?artist_name=${encodeURIComponent(artistName)}&track_name=${encodeURIComponent(trackName)}`, {
+      headers: {
+        'User-Agent': 'EchoCanvas v0.1.0'
+      }
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data;
+  } catch (e) {
+    console.error("Failed to fetch lyrics", e);
+    return null;
+  }
+}
+

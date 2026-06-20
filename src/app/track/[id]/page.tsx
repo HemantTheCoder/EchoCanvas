@@ -1,4 +1,4 @@
-import { getTrackDetails, getAudioFeatures, getSimilarTracks } from "@/lib/spotify-server";
+import { getTrackDetails, getAudioFeatures, getSimilarTracks, getLyrics } from "@/lib/spotify-server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -35,12 +35,21 @@ export default async function TrackPage({
       console.warn("Similar tracks not available");
     }
 
+    let lyricsData = null;
+    try {
+      const artistName = track.artists[0]?.name || "";
+      lyricsData = await getLyrics(artistName, track.name);
+    } catch (e) {
+      console.warn("Lyrics not available");
+    }
+
     return (
       <div className="flex-1 flex flex-col relative w-full h-full min-h-[800px]">
         <TrackDashboard 
           track={track} 
           audioFeatures={audioFeatures} 
           similarTracks={similarTracks} 
+          lyricsData={lyricsData}
         />
       </div>
     );
